@@ -36,9 +36,12 @@ make up-sim      # or: simulated market with injected, labelled anomalies
 | | |
 |---|---|
 | Dashboard | http://localhost:8000 |
-| MLflow (experiments, registry) | http://localhost:5000 |
+| MLflow (experiments, registry) | http://localhost:5001 |
 | API docs | http://localhost:8000/docs |
 | Prometheus metrics | http://localhost:8000/metrics |
+
+Host ports are configurable via `API_PORT` (default 8000) and `MLFLOW_PORT` (default 5001; macOS
+uses 5000 for AirPlay) in `.env`.
 
 The trainer runs once on startup and registers the first model. Until it finishes (about a
 minute) the detector runs in z-score-only mode, then hot-swaps to the champion. Each symbol needs

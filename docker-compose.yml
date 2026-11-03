@@ -58,7 +58,7 @@ services:
       --backend-store-uri sqlite:////mlflow/mlflow.db
       --serve-artifacts --artifacts-destination /mlflow/artifacts
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5001}:5000"
     volumes:
       - mlflow-data:/mlflow
     healthcheck:
@@ -107,7 +107,7 @@ services:
       <<: *app-env
       ANOMALY_DB_PATH: /data/anomalies.db
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     volumes:
       - api-data:/data
     depends_on:

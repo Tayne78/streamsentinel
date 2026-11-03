@@ -16,11 +16,11 @@ format:
 
 up:            ## live Binance data
 	docker compose up -d --build
-	@echo "Dashboard: http://localhost:8000   MLflow: http://localhost:5000"
+	@echo "Dashboard: http://localhost:$${API_PORT:-8000}   MLflow: http://localhost:$${MLFLOW_PORT:-5001}"
 
 up-sim:        ## simulated market with labelled anomalies (live precision/recall on the dashboard)
 	SOURCE=simulator docker compose up -d --build
-	@echo "Dashboard: http://localhost:8000   MLflow: http://localhost:5000"
+	@echo "Dashboard: http://localhost:$${API_PORT:-8000}   MLflow: http://localhost:$${MLFLOW_PORT:-5001}"
 
 down:
 	docker compose down
