@@ -3,6 +3,8 @@
 Real-time anomaly detection on streaming market data, end to end: **Binance WebSocket → Kafka →
 Spark Structured Streaming → MLflow-served detector → FastAPI + live dashboard**. One `docker compose up`.
 
+**Stack:** Python, Apache Kafka, Spark Structured Streaming (PySpark 4), scikit-learn, MLflow, FastAPI, Docker Compose, pytest, ruff.
+
 ![Dashboard on the labelled simulator stream](docs/dashboard.png)
 *Simulator mode: injected anomalies are tagged with their ground truth, so the dashboard shows live
 hits, misses and false alarms (here 3 of 3 injected anomalies caught, 0 false alarms; a small
@@ -23,12 +25,6 @@ sample, the larger test-set numbers are in [Results](#results)).*
   offline evaluation matches what runs live.
 - **Also runs on real data:** the same pipeline consumes live Binance trades (screenshot below).
 
-### Running on live Binance data
-
-![Dashboard on live Binance data](docs/dashboard-live.png)
-*Live mode (BTC, ETH, SOL). There is no ground truth on real markets, so the Ground truth column is
-empty. The alert list includes price spikes that hit all three symbols in the same 10-second window.*
-
 ```mermaid
 flowchart LR
     B[Binance WebSocket<br/>live trades] --> P[Producer]
@@ -43,6 +39,12 @@ flowchart LR
     K3 --> A[FastAPI<br/>REST, WebSocket, /metrics]
     A --> UI[Live dashboard]
 ```
+
+### On live Binance data
+
+![Dashboard on live Binance data](docs/dashboard-live.png)
+*Live mode (BTC, ETH, SOL). There is no ground truth on real markets, so the Ground truth column is
+empty. The alert list includes price spikes that hit all three symbols in the same 10-second window.*
 
 ## Quickstart
 
@@ -142,6 +144,9 @@ src/streamsentinel/
   detector.py      robust baseline, Isolation Forest scoring, explanations
   simulator.py     synthetic market with injected anomalies
 tests/             unit, Spark parity, end-to-end pipeline, API, training/registry
+docker/            Dockerfiles for the app and Spark images
+docs/              dashboard screenshots
+.claude/agents/    Claude Code review agent for UI and architecture (development aid)
 ```
 
 ## Development
