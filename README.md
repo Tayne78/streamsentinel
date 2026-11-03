@@ -1,5 +1,7 @@
 # StreamSentinel
 
+[![CI](https://github.com/Tayne78/streamsentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/Tayne78/streamsentinel/actions/workflows/ci.yml)
+
 Real-time anomaly detection on streaming market data, end to end: **Binance WebSocket → Kafka →
 Spark Structured Streaming → MLflow-served detector → FastAPI + live dashboard**. One `docker compose up`.
 
@@ -160,12 +162,15 @@ make lint
 
 ## Limitations and next steps
 
-- **Illiquid symbols on live data.** SOLUSDT trades in 0.01 price steps, so many 10-second windows
-  have a price range of exactly 0. The range baseline then has a median absolute deviation of 0 and
-  the z-score saturates at the ±1000 clip, which raises `volatility_burst` and `volatility_drought`
-  alerts that are artifacts, not market events. Seen in a live run of about 10 minutes: every one of
-  the first 11 alerts was this case. Fix to evaluate: a minimum scale (tick-size floor) for the range
-  feature. Not changed yet because it alters detection behaviour and has to be re-validated.
+- **Tick-quantised prices (fixed, validated by unit test only).** SOLUSDT trades in 0.01 steps,
+  about 1 bp of its price, so a baseline of near-identical 10-second ranges has a MAD and std close
+  to zero and a window spanning 0 or 4 ticks scored hundreds of sigmas. In one early live run, the
+  first 11 alerts were all this artifact. The z-score scale of `log_return` and `range_pct` now has
+  a floor of 1 bp (`MIN_SCALE_BY_FEATURE` in `detector.py`). A unit test reproduces the case and
+  fails without the floor. The simulator quantises SOL much more finely (0.001), so its test numbers
+  do not exercise this and are unchanged by the fix. A later 9-minute live run after the fix showed
+  no such alerts, but the artifact did not occur in every live run before the fix either, so that
+  run alone is weak evidence.
 - Live results are not labelled. The reported precision and recall come from the simulator only.
 - Thresholds are tuned on synthetic data. Real crypto markets are heavier-tailed, so live data
   produces more alerts; `Z_THRESHOLD=8` in `.env` is a reasonable starting point. Next step:
