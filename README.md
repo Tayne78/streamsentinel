@@ -1,13 +1,33 @@
 # StreamSentinel
 
-Real-time anomaly detection on streaming market data. Live trades from Binance flow through
-**Kafka** into a **Spark Structured Streaming** job that aggregates event-time windows; a
-detector service scores every window with **robust per-symbol z-scores and an Isolation Forest**
-served from the **MLflow** model registry; a **FastAPI** service streams the results to a live
-dashboard and exposes Prometheus metrics. Everything runs with one `docker compose up`.
+Real-time anomaly detection on streaming market data, end to end: **Binance WebSocket → Kafka →
+Spark Structured Streaming → MLflow-served detector → FastAPI + live dashboard**. One `docker compose up`.
 
-![Dashboard](docs/dashboard.png)
-*Dashboard replaying the simulator stream through the trained ensemble detector. Injected anomalies are tagged so you can see hits, misses and false alarms.*
+![Dashboard on the labelled simulator stream](docs/dashboard.png)
+*Simulator mode: injected anomalies are tagged with their ground truth, so the dashboard shows live
+hits, misses and false alarms (here 3 of 3 injected anomalies caught, 0 false alarms; a small
+sample, the larger test-set numbers are in [Results](#results)).*
+
+## At a glance
+
+- **Streaming:** Spark aggregates trades into 10-second event-time windows with a watermark. Each
+  window is emitted once. Median window-close-to-score latency is about 6.5 s, which includes the
+  3 s watermark.
+- **Detection:** robust per-symbol z-scores (median/MAD) plus an Isolation Forest, combined into an
+  ensemble. On a held-out simulator stream: **precision 0.95, recall 0.70, 0.75 false alarms/hour.**
+- **MLOps:** the trainer registers models in MLflow, promotes a new model to `@champion` only if it
+  beats the current one, and the running detector hot-swaps it without a restart.
+- **Observable:** Prometheus metrics (latency, scored windows, anomalies per type), health checks,
+  anomalies persisted to SQLite.
+- **Tested:** 39 tests, including a check that Spark and pandas compute identical features, so
+  offline evaluation matches what runs live.
+- **Also runs on real data:** the same pipeline consumes live Binance trades (screenshot below).
+
+### Running on live Binance data
+
+![Dashboard on live Binance data](docs/dashboard-live.png)
+*Live mode (BTC, ETH, SOL). There is no ground truth on real markets, so the Ground truth column is
+empty. The alert list includes price spikes that hit all three symbols in the same 10-second window.*
 
 ```mermaid
 flowchart LR
@@ -42,6 +62,9 @@ make up-sim      # or: simulated market with injected, labelled anomalies
 
 Host ports are configurable via `API_PORT` (default 8000) and `MLFLOW_PORT` (default 5001; macOS
 uses 5000 for AirPlay) in `.env`.
+
+If `stream.binance.com:9443` is blocked on your network (the WebSocket handshake times out), set
+`BINANCE_WS_URL=wss://data-stream.binance.vision/stream`, which uses port 443.
 
 The trainer runs once on startup and registers the first model. Until it finishes (about a
 minute) the detector runs in z-score-only mode, then hot-swaps to the champion. Each symbol needs
@@ -132,6 +155,13 @@ make lint
 
 ## Limitations and next steps
 
+- **Illiquid symbols on live data.** SOLUSDT trades in 0.01 price steps, so many 10-second windows
+  have a price range of exactly 0. The range baseline then has a median absolute deviation of 0 and
+  the z-score saturates at the ±1000 clip, which raises `volatility_burst` and `volatility_drought`
+  alerts that are artifacts, not market events. Seen in a live run of about 10 minutes: every one of
+  the first 11 alerts was this case. Fix to evaluate: a minimum scale (tick-size floor) for the range
+  feature. Not changed yet because it alters detection behaviour and has to be re-validated.
+- Live results are not labelled. The reported precision and recall come from the simulator only.
 - Thresholds are tuned on synthetic data. Real crypto markets are heavier-tailed, so live data
   produces more alerts; `Z_THRESHOLD=8` in `.env` is a reasonable starting point. Next step:
   record live feature windows and recalibrate the false-alarm rate on them.

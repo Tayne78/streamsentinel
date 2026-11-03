@@ -49,7 +49,7 @@
   .stat .v { font: 600 15px var(--mono); }
   .stat .s { font-size: 11px; color: var(--muted); }
 
-  main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; padding: 12px 16px; }
+  main { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; padding: 12px 16px; }
   .panel { background: var(--panel); border: 1px solid var(--border); min-width: 0; }
   .panel > h2 { margin: 0; padding: 6px 10px; font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--border);
                 display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -87,7 +87,8 @@
   .filters select { background: var(--panel); border: 1px solid var(--border); padding: 2px 4px; }
   .scroll { overflow: auto; max-height: 560px; }
   .sev-high { color: var(--high); font-weight: 600; } .sev-med { color: var(--med); font-weight: 600; }
-  td.why { white-space: normal; min-width: 220px; }
+  td.why { white-space: normal; min-width: 150px; }
+  #anoms th, #anoms td { padding: 4px 7px; }
   .truth-tp { color: var(--ok); } .truth-fp { color: var(--high); }
   .empty { padding: 18px 10px; color: var(--muted); }
 
@@ -380,10 +381,14 @@ function renderStatus() {
 async function bootstrap() {
   const symbols = await (await fetch('/api/symbols')).json();
   for (const s of symbols) state.windows[s] = await (await fetch(`/api/windows?symbol=${s}&limit=${MAX}`)).json();
+  // Seed "last score" from the loaded history so the status line is right before the first push.
+  const detected = Object.values(state.windows).flat().map(w => w.detected_at).filter(Number.isFinite);
+  if (detected.length) state.lastMsgAt = Math.max(...detected);
   state.anomalies = await (await fetch('/api/anomalies?limit=200')).json();
   state.anomalies.forEach(a => { state.seen.add(key(a)); state.counts[a.symbol] = (state.counts[a.symbol] || 0) + 1; });
   state.symbol = state.symbol || symbols[0] || null;
-  renderSymbols(); render(); renderAnomalies(); loadStats();
+  renderSymbols(); render(); renderAnomalies(); renderStatus();
+  await loadStats();
 }
 
 function connect() {
