@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StreamSentinel</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #121821; --panel-2: #18202b; --border: #232d3a;
+    --text: #e6edf3; --muted: #8b98a8; --accent: #4cc2ff; --danger: #ff5c6c;
+    --warn: #ffb547; --ok: #3ddc97;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; justify-content: space-between;
+           padding: 14px 24px; border-bottom: 1px solid var(--border); }
+  h1 { font-size: 17px; margin: 0; letter-spacing: .3px; }
+  h1 span { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 13px; }
+  .conn { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+  .dot.live { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  main { padding: 18px 24px; display: grid; gap: 16px;
+         grid-template-columns: minmax(0, 1fr) 380px; }
+  .kpis { grid-column: 1 / -1; display: grid; gap: 12px;
+          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .kpi, .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+  .kpi { padding: 12px 14px; }
+  .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+  .kpi .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-family: var(--mono); }
+  .kpi .sub { color: var(--muted); font-size: 12px; }
+  .panel { padding: 14px 16px; min-width: 0; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tab { background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
+         padding: 5px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 13px; }
+  .tab.active { color: var(--text); border-color: var(--accent); }
+  .price-head { display: flex; align-items: baseline; gap: 12px; margin: 2px 0 8px; }
+  .price-head .px { font: 600 24px var(--mono); }
+  .price-head .chg { font-family: var(--mono); font-size: 13px; }
+  .chart-wrap { position: relative; height: 380px; }
+  .chart-wrap.small { height: 140px; margin-top: 8px; }
+  .feed-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .feed-title h2 { font-size: 14px; margin: 0; }
+  .feed { display: flex; flex-direction: column; gap: 8px; max-height: 600px; overflow-y: auto; }
+  .item { background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--warn);
+          border-radius: 8px; padding: 9px 11px; }
+  .item.high { border-left-color: var(--danger); }
+  .item .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+  .item .type { color: var(--text); font-weight: 600; font-size: 13px; }
+  .item .why { font-size: 12px; margin-top: 3px; }
+  .chip { font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--border); }
+  .chip.tp { color: var(--ok); border-color: var(--ok); }
+  .chip.fp { color: var(--danger); border-color: var(--danger); }
+  .empty { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; padding: 14px 16px; } header { padding: 12px 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>StreamSentinel <span>real-time market anomaly detection</span></h1>
+  <div class="conn"><div class="dot" id="dot"></div><span id="conn">connecting</span></div>
+</header>
+<main>
+  <section class="kpis">
+    <div class="kpi"><div class="label">Windows scored</div><div class="value" id="k-windows">0</div><div class="sub" id="k-window-size">10 s tumbling windows</div></div>
+    <div class="kpi"><div class="label">Anomalies</div><div class="value" id="k-anoms">0</div><div class="sub" id="k-rate">&nbsp;</div></div>
+    <div class="kpi"><div class="label">Detection latency</div><div class="value" id="k-lat">–</div><div class="sub">p50 / p95, window close to alert</div></div>
+    <div class="kpi"><div class="label">Precision / Recall</div><div class="value" id="k-pr">–</div><div class="sub" id="k-pr-sub">needs labelled (simulator) data</div></div>
+    <div class="kpi"><div class="label">Model</div><div class="value" id="k-model">–</div><div class="sub" id="k-model-sub">MLflow registry champion</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="tabs" id="tabs"></div>
+    <div class="price-head"><span class="px" id="px">–</span><span class="chg" id="chg"></span></div>
+    <div class="chart-wrap"><canvas id="price"></canvas></div>
+    <div class="chart-wrap small"><canvas id="volume"></canvas></div>
+  </section>
+
+  <section class="panel">
+    <div class="feed-title"><h2>Anomaly feed</h2><span class="chip" id="feed-count">0</span></div>
+    <div class="feed" id="feed"><div class="empty">Waiting for the first anomaly…</div></div>
+  </section>
+</main>
+<script>
+const MAX = 180;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const state = { symbol: null, windows: {}, anomalies: [], seen: new Set() };
+const key = s => `${s.symbol}:${s.window_start}`;
+const fmtTime = ms => new Date(ms).toLocaleTimeString([], { hour12: false });
+const fmtPx = v => v >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 2 : 4);
+
+Chart.defaults.color = css('--muted');
+Chart.defaults.borderColor = css('--border');
+Chart.defaults.font.family = 'system-ui, sans-serif';
+
+const priceChart = new Chart(document.getElementById('price'), {
+  data: { labels: [], datasets: [
+    { type: 'line', label: 'VWAP', data: [], borderColor: css('--accent'), borderWidth: 1.6,
+      pointRadius: 0, tension: 0.2, order: 2 },
+    { type: 'scatter', label: 'Anomaly', data: [], backgroundColor: css('--danger'),
+      borderColor: '#fff', borderWidth: 1, pointRadius: 6, pointHoverRadius: 8, order: 1 },
+  ]},
+  options: { animation: false, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false },
+    plugins: { legend: { display: false }, tooltip: { callbacks: {
+      label: ctx => ctx.datasetIndex === 1 ? `${ctx.raw.type} (${ctx.raw.why})` : `VWAP ${fmtPx(ctx.parsed.y)}` } } },
+    scales: { x: { ticks: { maxTicksLimit: 8 } }, y: { position: 'right', grace: '5%' } } },
+});
+const volumeChart = new Chart(document.getElementById('volume'), {
+  type: 'bar', data: { labels: [], datasets: [{ label: 'Volume', data: [], backgroundColor: [] }] },
+  options: { animation: false, maintainAspectRatio: false, plugins: { legend: { display: false } },
+    scales: { x: { display: false }, y: { position: 'right', ticks: { maxTicksLimit: 3 } } } },
+});
+
+function render() {
+  const rows = (state.windows[state.symbol] || []).slice(-MAX);
+  const labels = rows.map(r => fmtTime(r.window_end));
+  priceChart.data.labels = labels;
+  priceChart.data.datasets[0].data = rows.map(r => r.vwap);
+  priceChart.data.datasets[1].data = rows.map((r, i) => r.is_anomaly
+    ? { x: labels[i], y: r.vwap, type: r.anomaly_type, why: r.explanation } : null).filter(Boolean);
+  priceChart.update();
+  volumeChart.data.labels = labels;
+  volumeChart.data.datasets[0].data = rows.map(r => r.volume);
+  volumeChart.data.datasets[0].backgroundColor = rows.map(r => r.is_anomaly ? css('--danger') : '#2f4458');
+  volumeChart.update();
+  if (rows.length) {
+    const last = rows[rows.length - 1], first = rows[0];
+    const chg = (last.close / first.close - 1) * 100;
+    document.getElementById('px').textContent = fmtPx(last.close);
+    const el = document.getElementById('chg');
+    el.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}% over ${rows.length} windows`;
+    el.style.color = chg >= 0 ? css('--ok') : css('--danger');
+  }
+}
+
+function renderTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  Object.keys(state.windows).sort().forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (s === state.symbol ? ' active' : '');
+    b.textContent = s;
+    b.onclick = () => { state.symbol = s; renderTabs(); render(); };
+    tabs.appendChild(b);
+  });
+}
+
+function feedItem(a) {
+  const div = document.createElement('div');
+  div.className = 'item' + (a.severity >= 2 ? ' high' : '');
+  let truth = '';
+  if (a.source === 'simulator') {
+    truth = a.label ? `<span class="chip tp">injected: ${a.label}</span>` : '<span class="chip fp">false alarm</span>';
+  }
+  div.innerHTML = `
+    <div class="row"><span class="type">${a.anomaly_type.replace('_', ' ')}</span><span>${a.symbol} · ${fmtTime(a.window_end)}</span></div>
+    <div class="why">${a.explanation}</div>
+    <div class="row" style="margin-top:5px"><span>severity ${a.severity.toFixed(2)} · ${a.detector_mode}</span>${truth}</div>`;
+  return div;
+}
+
+function renderFeed() {
+  const feed = document.getElementById('feed');
+  feed.innerHTML = '';
+  if (!state.anomalies.length) { feed.innerHTML = '<div class="empty">Waiting for the first anomaly…</div>'; }
+  state.anomalies.slice().reverse().slice(0, 100).forEach(a => feed.appendChild(feedItem(a)));
+  document.getElementById('feed-count').textContent = state.anomalies.length;
+}
+
+async function loadStats() {
+  try {
+    const s = await (await fetch('/api/stats')).json();
+    document.getElementById('k-windows').textContent = s.windows_scored.toLocaleString();
+    document.getElementById('k-anoms').textContent = s.anomalies.toLocaleString();
+    document.getElementById('k-rate').textContent = s.windows_scored
+      ? `${(100 * s.anomalies / s.windows_scored).toFixed(2)}% of windows` : ' ';
+    document.getElementById('k-lat').textContent = s.latency_p50_s == null ? '–'
+      : `${s.latency_p50_s.toFixed(1)}s / ${s.latency_p95_s.toFixed(1)}s`;
+    if (s.ground_truth) {
+      const g = s.ground_truth, pct = v => v == null ? '–' : `${Math.round(v * 100)}%`;
+      document.getElementById('k-pr').textContent = `${pct(g.precision)} / ${pct(g.recall)}`;
+      document.getElementById('k-pr-sub').textContent = `${g.tp} hits, ${g.fp} false alarms, ${g.fn} missed`;
+    }
+    if (s.model && s.model.mode) {
+      document.getElementById('k-model').textContent = s.model.version ? `v${s.model.version}` : 'baseline';
+      document.getElementById('k-model-sub').textContent = `${s.model.mode} detector`;
+    }
+  } catch (e) { /* API restarting */ }
+}
+
+async function bootstrap() {
+  const symbols = await (await fetch('/api/symbols')).json();
+  for (const s of symbols) state.windows[s] = await (await fetch(`/api/windows?symbol=${s}&limit=${MAX}`)).json();
+  state.anomalies = await (await fetch('/api/anomalies?limit=200')).json();
+  state.anomalies.forEach(a => state.seen.add(key(a)));
+  state.symbol = state.symbol || symbols[0] || null;
+  renderTabs(); render(); renderFeed(); loadStats();
+}
+
+function connect() {
+  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/live`);
+  ws.onopen = () => { document.getElementById('dot').classList.add('live'); document.getElementById('conn').textContent = 'live'; };
+  ws.onclose = () => {
+    document.getElementById('dot').classList.remove('live');
+    document.getElementById('conn').textContent = 'reconnecting';
+    setTimeout(connect, 2000);
+  };
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type !== 'score') return;
+    const s = msg.data, isNew = !state.windows[s.symbol];
+    const rows = (state.windows[s.symbol] = state.windows[s.symbol] || []);
+    // The WebSocket may replay windows the initial REST load already returned.
+    if (rows.length && rows[rows.length - 1].window_start >= s.window_start) return;
+    rows.push(s);
+    if (state.windows[s.symbol].length > 360) state.windows[s.symbol].shift();
+    if (!state.symbol) state.symbol = s.symbol;
+    if (isNew) renderTabs();
+    if (s.symbol === state.symbol) render();
+    if (s.is_anomaly && !state.seen.has(key(s))) { state.seen.add(key(s)); state.anomalies.push(s); renderFeed(); }
+  };
+}
+
+bootstrap().catch(console.error);
+connect();
+setInterval(loadStats, 3000);
+</script>
+</body>
+</html>
