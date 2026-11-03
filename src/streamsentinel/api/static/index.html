@@ -7,225 +7,422 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
 <style>
   :root {
-    --bg: #0b0f14; --panel: #121821; --panel-2: #18202b; --border: #232d3a;
-    --text: #e6edf3; --muted: #8b98a8; --accent: #4cc2ff; --danger: #ff5c6c;
-    --warn: #ffb547; --ok: #3ddc97;
+    color-scheme: light dark;
+    --bg: #f4f5f7; --panel: #ffffff; --row: #f0f2f5; --border: #d5d9e0; --grid: #e6e9ee;
+    --text: #1c2128; --muted: #5d6673; --accent: #1f5fa8;
+    --high: #c62828; --med: #b26a00; --ok: #2e7d4f;
+    --bar: #9aa5b4;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --panel: #1b1f26; --row: #232830; --border: #2f353f; --grid: #262b33;
+      --text: #dde2ea; --muted: #8f99a8; --accent: #6aa7e6;
+      --high: #ff6b6b; --med: #e8a33d; --ok: #5cc48a;
+      --bar: #4a5565;
+    }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
-         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  header { display: flex; align-items: center; justify-content: space-between;
-           padding: 14px 24px; border-bottom: 1px solid var(--border); }
-  h1 { font-size: 17px; margin: 0; letter-spacing: .3px; }
-  h1 span { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 13px; }
-  .conn { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
-  .dot.live { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-  main { padding: 18px 24px; display: grid; gap: 16px;
-         grid-template-columns: minmax(0, 1fr) 380px; }
-  .kpis { grid-column: 1 / -1; display: grid; gap: 12px;
-          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-  .kpi, .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
-  .kpi { padding: 12px 14px; }
-  .kpi .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
-  .kpi .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-family: var(--mono); }
-  .kpi .sub { color: var(--muted); font-size: 12px; }
-  .panel { padding: 14px 16px; min-width: 0; }
-  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
-  .tab { background: var(--panel-2); border: 1px solid var(--border); color: var(--muted);
-         padding: 5px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 13px; }
-  .tab.active { color: var(--text); border-color: var(--accent); }
-  .price-head { display: flex; align-items: baseline; gap: 12px; margin: 2px 0 8px; }
-  .price-head .px { font: 600 24px var(--mono); }
-  .price-head .chg { font-family: var(--mono); font-size: 13px; }
-  .chart-wrap { position: relative; height: 380px; }
-  .chart-wrap.small { height: 140px; margin-top: 8px; }
-  .feed-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .feed-title h2 { font-size: 14px; margin: 0; }
-  .feed { display: flex; flex-direction: column; gap: 8px; max-height: 600px; overflow-y: auto; }
-  .item { background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--warn);
-          border-radius: 8px; padding: 9px 11px; }
-  .item.high { border-left-color: var(--danger); }
-  .item .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
-  .item .type { color: var(--text); font-weight: 600; font-size: 13px; }
-  .item .why { font-size: 12px; margin-top: 3px; }
-  .chip { font-size: 11px; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--border); }
-  .chip.tp { color: var(--ok); border-color: var(--ok); }
-  .chip.fp { color: var(--danger); border-color: var(--danger); }
-  .empty { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
-  @media (max-width: 960px) { main { grid-template-columns: 1fr; padding: 14px 16px; } header { padding: 12px 16px; } }
+         font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         font-variant-numeric: tabular-nums; }
+  button, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .num { font-family: var(--mono); }
+  .muted { color: var(--muted); }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px;
+           padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  h1 { font-size: 14px; margin: 0; font-weight: 600; }
+  .status { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-left: auto; font-size: 12px; color: var(--muted); }
+  .status b { color: var(--text); font-weight: 500; }
+  .state-ok { color: var(--ok); } .state-bad { color: var(--high); } .state-warn { color: var(--med); }
+
+  #banner { display: none; padding: 6px 16px; font-size: 12px; border-bottom: 1px solid var(--border);
+            background: var(--row); }
+  #banner.warn { display: block; color: var(--med); border-left: 3px solid var(--med); }
+  #banner.bad { display: block; color: var(--high); border-left: 3px solid var(--high); }
+
+  .strip { display: flex; flex-wrap: wrap; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .stat { padding: 7px 16px; border-right: 1px solid var(--border); min-width: 120px; }
+  .stat .l { font-size: 11px; color: var(--muted); }
+  .stat .v { font: 600 15px var(--mono); }
+  .stat .s { font-size: 11px; color: var(--muted); }
+
+  main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 12px; padding: 12px 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); min-width: 0; }
+  .panel > h2 { margin: 0; padding: 6px 10px; font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--border);
+                display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel > h2 .muted { font-weight: 400; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 4px 10px; text-align: left; white-space: nowrap; }
+  th { font-size: 11px; font-weight: 500; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--panel); }
+  th button { background: none; border: 0; padding: 0; cursor: pointer; color: inherit; font-weight: inherit; }
+  th button:hover { color: var(--text); }
+  th[aria-sort="ascending"] button::after { content: " \25B2"; font-size: 9px; }
+  th[aria-sort="descending"] button::after { content: " \25BC"; font-size: 9px; }
+  td { border-bottom: 1px solid var(--grid); }
+  tbody tr:hover { background: var(--row); }
+  tr.sel { background: var(--row); }
+  td.r, th.r { text-align: right; }
+
+  #syms tbody tr { cursor: pointer; }
+  #syms tr.sel td:first-child { box-shadow: inset 3px 0 var(--accent); }
+  .sym { background: none; border: 0; padding: 0; cursor: pointer; font-weight: 600; }
+  .bar { display: inline-block; width: 60px; height: 6px; background: var(--grid); vertical-align: middle; margin-right: 6px; }
+  .bar i { display: block; height: 100%; background: var(--bar); }
+
+  .chart-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 8px 10px 0; }
+  .chart-head .px { font: 600 20px var(--mono); }
+  .chart-label { padding: 6px 10px 0; font-size: 11px; color: var(--muted); }
+  .chart-wrap { position: relative; height: 230px; padding: 0 6px; }
+  .chart-wrap.sev { height: 150px; }
+  .chart-wrap.vol { height: 70px; }
+  .overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+             color: var(--muted); font-size: 12px; text-align: center; padding: 0 20px; background: var(--panel); }
+  .overlay.on { display: flex; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .filters select { background: var(--panel); border: 1px solid var(--border); padding: 2px 4px; }
+  .scroll { overflow: auto; max-height: 560px; }
+  .sev-high { color: var(--high); font-weight: 600; } .sev-med { color: var(--med); font-weight: 600; }
+  td.why { white-space: normal; min-width: 220px; }
+  .truth-tp { color: var(--ok); } .truth-fp { color: var(--high); }
+  .empty { padding: 18px 10px; color: var(--muted); }
+
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; padding: 10px; } header { padding: 8px 10px; } .status { margin-left: 0; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>StreamSentinel <span>real-time market anomaly detection</span></h1>
-  <div class="conn"><div class="dot" id="dot"></div><span id="conn">connecting</span></div>
+  <h1>StreamSentinel</h1>
+  <div class="status" aria-live="polite">
+    <span>Stream <b id="conn" class="state-bad">connecting</b></span>
+    <span>Last score <b id="age" class="num">–</b></span>
+    <span>Detector <b id="model">–</b></span>
+  </div>
 </header>
+<div id="banner" role="status"></div>
+
+<section class="strip" aria-label="Pipeline summary">
+  <div class="stat"><div class="l">Windows scored</div><div class="v" id="k-windows">–</div><div class="s">10 s event-time windows</div></div>
+  <div class="stat"><div class="l">Anomalies</div><div class="v" id="k-anoms">–</div><div class="s" id="k-rate">&nbsp;</div></div>
+  <div class="stat"><div class="l">Latency p50 / p95</div><div class="v" id="k-lat">–</div><div class="s">window close to score</div></div>
+  <div class="stat"><div class="l">Precision / recall</div><div class="v" id="k-pr">–</div><div class="s" id="k-pr-sub">needs labelled (simulator) data</div></div>
+</section>
+
 <main>
-  <section class="kpis">
-    <div class="kpi"><div class="label">Windows scored</div><div class="value" id="k-windows">0</div><div class="sub" id="k-window-size">10 s tumbling windows</div></div>
-    <div class="kpi"><div class="label">Anomalies</div><div class="value" id="k-anoms">0</div><div class="sub" id="k-rate">&nbsp;</div></div>
-    <div class="kpi"><div class="label">Detection latency</div><div class="value" id="k-lat">–</div><div class="sub">p50 / p95, window close to alert</div></div>
-    <div class="kpi"><div class="label">Precision / Recall</div><div class="value" id="k-pr">–</div><div class="sub" id="k-pr-sub">needs labelled (simulator) data</div></div>
-    <div class="kpi"><div class="label">Model</div><div class="value" id="k-model">–</div><div class="sub" id="k-model-sub">MLflow registry champion</div></div>
-  </section>
+  <div style="display:grid;gap:12px;align-content:start;min-width:0">
+    <section class="panel">
+      <h2>Symbols <span class="muted">click a row to chart it</span></h2>
+      <div class="scroll" style="max-height:none">
+        <table id="syms">
+          <thead><tr><th>Symbol</th><th class="r">Last close</th><th>Baseline</th><th class="r">Severity</th><th class="r">Anomalies</th><th class="r">Age</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span id="chart-title">–</span><span class="muted" id="chart-sub"></span></h2>
+      <div class="chart-head"><span class="px" id="px">–</span><span class="num" id="chg"></span></div>
+      <div class="chart-label">VWAP per window (price), anomalies marked</div>
+      <div class="chart-wrap"><canvas id="price" aria-label="Price chart"></canvas><div class="overlay" id="ov-price"></div></div>
+      <div class="chart-label">Severity = max |robust z| / z threshold. Line at 1.0 is the z threshold; isolation-forest alerts can fire below it.</div>
+      <div class="chart-wrap sev"><canvas id="sev" aria-label="Severity chart"></canvas><div class="overlay" id="ov-sev"></div></div>
+      <div class="chart-label">Volume per window (base asset)</div>
+      <div class="chart-wrap vol"><canvas id="volume" aria-label="Volume chart"></canvas></div>
+    </section>
+  </div>
 
   <section class="panel">
-    <div class="tabs" id="tabs"></div>
-    <div class="price-head"><span class="px" id="px">–</span><span class="chg" id="chg"></span></div>
-    <div class="chart-wrap"><canvas id="price"></canvas></div>
-    <div class="chart-wrap small"><canvas id="volume"></canvas></div>
-  </section>
-
-  <section class="panel">
-    <div class="feed-title"><h2>Anomaly feed</h2><span class="chip" id="feed-count">0</span></div>
-    <div class="feed" id="feed"><div class="empty">Waiting for the first anomaly…</div></div>
+    <h2>Anomalies <span class="muted" id="feed-count">0</span></h2>
+    <div class="filters">
+      <label>Symbol <select id="f-sym"><option value="">all</option></select></label>
+      <label>Severity <select id="f-sev">
+        <option value="0">any</option><option value="1.3">medium+ (&ge;1.3)</option><option value="2">high (&ge;2.0)</option>
+      </select></label>
+    </div>
+    <div class="scroll">
+      <table id="anoms">
+        <thead><tr>
+          <th data-k="t" aria-sort="descending"><button>Time</button></th>
+          <th data-k="symbol"><button>Symbol</button></th>
+          <th data-k="type"><button>Type</button></th>
+          <th data-k="sev" class="r"><button>Severity</button></th>
+          <th>Explanation</th>
+          <th data-k="truth"><button>Ground truth</button></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="anoms-empty"></div>
+    </div>
   </section>
 </main>
+
 <script>
-const MAX = 180;
+const MAX = 180, WARN_STALE_S = 30;
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const state = { symbol: null, windows: {}, anomalies: [], seen: new Set() };
+const state = { symbol: null, windows: {}, anomalies: [], seen: new Set(), counts: {},
+                lastMsgAt: null, ws: 'connecting', sort: { k: 't', dir: -1 }, stats: null };
+const $ = id => document.getElementById(id);
 const key = s => `${s.symbol}:${s.window_start}`;
 const fmtTime = ms => new Date(ms).toLocaleTimeString([], { hour12: false });
 const fmtPx = v => v >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : v.toFixed(v >= 10 ? 2 : 4);
+const sevClass = v => v >= 2 ? 'sev-high' : v >= 1.3 ? 'sev-med' : '';
+const fmtAge = s => s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
-Chart.defaults.color = css('--muted');
-Chart.defaults.borderColor = css('--border');
-Chart.defaults.font.family = 'system-ui, sans-serif';
+// ---- charts ---------------------------------------------------------------------------------
+let priceChart, sevChart, volumeChart;
+function applyChartTheme() {
+  if (!window.Chart) return;
+  Chart.defaults.color = css('--muted');
+  Chart.defaults.borderColor = css('--grid');
+  Chart.defaults.font.family = 'system-ui, sans-serif';
+  Chart.defaults.font.size = 11;
+}
+function sevColor(v) { return v >= 2 ? css('--high') : css('--med'); }
 
-const priceChart = new Chart(document.getElementById('price'), {
-  data: { labels: [], datasets: [
-    { type: 'line', label: 'VWAP', data: [], borderColor: css('--accent'), borderWidth: 1.6,
-      pointRadius: 0, tension: 0.2, order: 2 },
-    { type: 'scatter', label: 'Anomaly', data: [], backgroundColor: css('--danger'),
-      borderColor: '#fff', borderWidth: 1, pointRadius: 6, pointHoverRadius: 8, order: 1 },
-  ]},
-  options: { animation: false, maintainAspectRatio: false, interaction: { mode: 'nearest', intersect: false },
-    plugins: { legend: { display: false }, tooltip: { callbacks: {
-      label: ctx => ctx.datasetIndex === 1 ? `${ctx.raw.type} (${ctx.raw.why})` : `VWAP ${fmtPx(ctx.parsed.y)}` } } },
-    scales: { x: { ticks: { maxTicksLimit: 8 } }, y: { position: 'right', grace: '5%' } } },
-});
-const volumeChart = new Chart(document.getElementById('volume'), {
-  type: 'bar', data: { labels: [], datasets: [{ label: 'Volume', data: [], backgroundColor: [] }] },
-  options: { animation: false, maintainAspectRatio: false, plugins: { legend: { display: false } },
-    scales: { x: { display: false }, y: { position: 'right', ticks: { maxTicksLimit: 3 } } } },
-});
+function buildCharts() {
+  applyChartTheme();
+  const base = { animation: false, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+  priceChart = new Chart($('price'), {
+    data: { labels: [], datasets: [
+      { type: 'line', data: [], borderColor: css('--accent'), borderWidth: 1.4, pointRadius: 0, tension: 0, order: 2 },
+      { type: 'scatter', data: [], pointRadius: 5, pointHoverRadius: 7, order: 1 },
+    ]},
+    options: { ...base, interaction: { mode: 'nearest', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: c => c.datasetIndex === 1 ? `${c.raw.type}, severity ${c.raw.sev.toFixed(2)}: ${c.raw.why}` : `VWAP ${fmtPx(c.parsed.y)}` } } },
+      scales: { x: { ticks: { maxTicksLimit: 8 } }, y: { position: 'right', grace: '5%', title: { display: true, text: 'VWAP' } } } },
+  });
+  sevChart = new Chart($('sev'), {
+    data: { labels: [], datasets: [
+      { type: 'line', data: [], borderColor: css('--muted'), borderWidth: 1.2, pointRadius: 0, stepped: false, spanGaps: false, order: 3 },
+      { type: 'line', data: [], borderColor: css('--high'), borderWidth: 1, borderDash: [5, 4], pointRadius: 0, order: 2 },
+      { type: 'scatter', data: [], pointRadius: 4, order: 1 },
+    ]},
+    options: { ...base, interaction: { mode: 'nearest', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { filter: c => c.datasetIndex !== 1, callbacks: {
+        label: c => `severity ${c.parsed.y.toFixed(2)}` } } },
+      scales: { x: { ticks: { maxTicksLimit: 8 } },
+                y: { position: 'right', min: 0, suggestedMax: 2, title: { display: true, text: 'severity (z / threshold)' } } } },
+  });
+  volumeChart = new Chart($('volume'), {
+    type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+    options: { ...base, scales: { x: { display: false }, y: { position: 'right', ticks: { maxTicksLimit: 3 } } } },
+  });
+}
 
 function render() {
-  const rows = (state.windows[state.symbol] || []).slice(-MAX);
+  const sym = state.symbol, rows = (state.windows[sym] || []).slice(-MAX);
+  $('chart-title').textContent = sym || 'No symbol';
+  if (!window.Chart) {
+    for (const id of ['ov-price', 'ov-sev']) { $(id).textContent = 'Chart library failed to load (cdn.jsdelivr.net unreachable). Tables below still work.'; $(id).classList.add('on'); }
+    return;
+  }
+  const scored = rows.filter(r => !r.warmup).length;
+  $('ov-price').textContent = sym ? '' : 'No data yet. Waiting for the first scored window.';
+  $('ov-price').classList.toggle('on', !rows.length);
+  $('ov-sev').textContent = rows.length && !scored ? 'Warming up: baseline still filling, no scores for this symbol yet.' : 'No data yet.';
+  $('ov-sev').classList.toggle('on', !scored);
+  $('chart-sub').textContent = rows.length ? `${rows.length} windows shown, ${scored} scored, ${rows.length - scored} warm-up` : '';
+
   const labels = rows.map(r => fmtTime(r.window_end));
   priceChart.data.labels = labels;
   priceChart.data.datasets[0].data = rows.map(r => r.vwap);
   priceChart.data.datasets[1].data = rows.map((r, i) => r.is_anomaly
-    ? { x: labels[i], y: r.vwap, type: r.anomaly_type, why: r.explanation } : null).filter(Boolean);
+    ? { x: labels[i], y: r.vwap, type: (r.anomaly_type || 'anomaly').replace(/_/g, ' '), why: r.explanation, sev: r.severity } : null).filter(Boolean);
+  priceChart.data.datasets[1].backgroundColor = priceChart.data.datasets[1].data.map(d => sevColor(d.sev));
+  priceChart.data.datasets[1].borderColor = css('--panel');
+  priceChart.data.datasets[0].borderColor = css('--accent');
   priceChart.update();
+
+  sevChart.data.labels = labels;
+  sevChart.data.datasets[0].data = rows.map(r => r.warmup ? null : r.severity);
+  sevChart.data.datasets[0].borderColor = css('--muted');
+  sevChart.data.datasets[1].data = rows.map(() => 1);
+  sevChart.data.datasets[1].borderColor = css('--high');
+  sevChart.data.datasets[2].data = rows.map((r, i) => r.is_anomaly ? { x: labels[i], y: r.severity } : null).filter(Boolean);
+  sevChart.data.datasets[2].backgroundColor = rows.filter(r => r.is_anomaly).map(r => sevColor(r.severity));
+  sevChart.update();
+
   volumeChart.data.labels = labels;
   volumeChart.data.datasets[0].data = rows.map(r => r.volume);
-  volumeChart.data.datasets[0].backgroundColor = rows.map(r => r.is_anomaly ? css('--danger') : '#2f4458');
+  volumeChart.data.datasets[0].backgroundColor = rows.map(r => r.is_anomaly ? sevColor(r.severity) : css('--bar'));
   volumeChart.update();
+
   if (rows.length) {
     const last = rows[rows.length - 1], first = rows[0];
     const chg = (last.close / first.close - 1) * 100;
-    document.getElementById('px').textContent = fmtPx(last.close);
-    const el = document.getElementById('chg');
-    el.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}% over ${rows.length} windows`;
-    el.style.color = chg >= 0 ? css('--ok') : css('--danger');
+    $('px').textContent = fmtPx(last.close);
+    $('chg').textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}% over ${rows.length} windows`;
+    $('chg').style.color = chg >= 0 ? css('--ok') : css('--high');
+  } else { $('px').textContent = '–'; $('chg').textContent = ''; }
+}
+
+// ---- symbols table ----------------------------------------------------------------------------
+function renderSymbols() {
+  const tb = document.querySelector('#syms tbody');
+  tb.innerHTML = '';
+  const syms = Object.keys(state.windows).sort();
+  if (!syms.length) { const tr = el('tr'); const td = el('td', 'empty', 'No symbols yet. Waiting for the first scored window.'); td.colSpan = 6; tr.appendChild(td); tb.appendChild(tr); return; }
+  for (const s of syms) {
+    const rows = state.windows[s], last = rows[rows.length - 1];
+    const scored = rows.filter(r => !r.warmup).length;
+    const tr = el('tr', s === state.symbol ? 'sel' : '');
+    tr.onclick = () => selectSymbol(s);
+    const b = el('button', 'sym', s); b.onclick = e => { e.stopPropagation(); selectSymbol(s); };
+    b.setAttribute('aria-pressed', s === state.symbol);
+    const c0 = el('td'); c0.appendChild(b);
+    const c1 = el('td', 'r num', last ? fmtPx(last.close) : '–');
+    const c2 = el('td');
+    const bar = el('span', 'bar'); const fill = el('i'); fill.style.width = `${rows.length ? 100 * scored / rows.length : 0}%`; bar.appendChild(fill);
+    c2.appendChild(bar); c2.appendChild(el('span', 'muted', last && last.warmup ? 'warming up' : `${scored} scored`));
+    const sev = last && !last.warmup ? last.severity : null;
+    const c3 = el('td', 'r num ' + (sev == null ? 'muted' : sevClass(sev)), sev == null ? '–' : sev.toFixed(2));
+    const c4 = el('td', 'r num', String(state.counts[s] || 0));
+    const c5 = el('td', 'r num muted', last ? fmtAge((Date.now() - last.window_end) / 1000) : '–');
+    c5.title = 'Time since window close (browser clock)';
+    [c0, c1, c2, c3, c4, c5].forEach(c => tr.appendChild(c));
+    tb.appendChild(tr);
   }
+  syncSymFilter();
+}
+function selectSymbol(s) { state.symbol = s; renderSymbols(); render(); }
+
+function syncSymFilter() {
+  const sel = $('f-sym'), cur = sel.value, syms = Object.keys(state.windows).sort();
+  if ([...sel.options].slice(1).map(o => o.value).join() === syms.join()) return;
+  sel.innerHTML = '<option value="">all</option>';
+  syms.forEach(s => { const o = el('option', null, s); o.value = s; sel.appendChild(o); });
+  sel.value = cur;
 }
 
-function renderTabs() {
-  const tabs = document.getElementById('tabs');
-  tabs.innerHTML = '';
-  Object.keys(state.windows).sort().forEach(s => {
-    const b = document.createElement('button');
-    b.className = 'tab' + (s === state.symbol ? ' active' : '');
-    b.textContent = s;
-    b.onclick = () => { state.symbol = s; renderTabs(); render(); };
-    tabs.appendChild(b);
-  });
+// ---- anomaly table ----------------------------------------------------------------------------
+function truthOf(a) {
+  if (a.source !== 'simulator') return { text: '–', cls: 'muted', rank: 0 };
+  return a.label ? { text: `injected: ${a.label}`, cls: 'truth-tp', rank: 2 } : { text: 'false alarm', cls: 'truth-fp', rank: 1 };
 }
-
-function feedItem(a) {
-  const div = document.createElement('div');
-  div.className = 'item' + (a.severity >= 2 ? ' high' : '');
-  let truth = '';
-  if (a.source === 'simulator') {
-    truth = a.label ? `<span class="chip tp">injected: ${a.label}</span>` : '<span class="chip fp">false alarm</span>';
+function renderAnomalies() {
+  const fs = $('f-sym').value, fv = parseFloat($('f-sev').value);
+  let items = state.anomalies.filter(a => (!fs || a.symbol === fs) && a.severity >= fv);
+  const { k, dir } = state.sort;
+  const val = { t: a => a.window_end, symbol: a => a.symbol, type: a => a.anomaly_type || '', sev: a => a.severity, truth: a => truthOf(a).rank };
+  items = items.slice().sort((a, b) => { const x = val[k](a), y = val[k](b); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+  const tb = document.querySelector('#anoms tbody');
+  tb.innerHTML = '';
+  for (const a of items.slice(0, 200)) {
+    const tr = el('tr', a.symbol === state.symbol ? 'sel' : '');
+    tr.style.cursor = 'pointer'; tr.onclick = () => selectSymbol(a.symbol);
+    const t = truthOf(a);
+    tr.appendChild(el('td', 'num', fmtTime(a.window_end)));
+    tr.appendChild(el('td', null, a.symbol));
+    tr.appendChild(el('td', null, (a.anomaly_type || 'anomaly').replace(/_/g, ' ')));
+    tr.appendChild(el('td', `r num ${sevClass(a.severity)}`, a.severity.toFixed(2)));
+    tr.appendChild(el('td', 'why', a.explanation || ''));
+    tr.appendChild(el('td', t.cls, t.text));
+    tb.appendChild(tr);
   }
-  div.innerHTML = `
-    <div class="row"><span class="type">${a.anomaly_type.replace('_', ' ')}</span><span>${a.symbol} · ${fmtTime(a.window_end)}</span></div>
-    <div class="why">${a.explanation}</div>
-    <div class="row" style="margin-top:5px"><span>severity ${a.severity.toFixed(2)} · ${a.detector_mode}</span>${truth}</div>`;
-  return div;
+  $('feed-count').textContent = items.length === state.anomalies.length ? `${items.length} total` : `${items.length} of ${state.anomalies.length}`;
+  $('anoms-empty').textContent = items.length ? ''
+    : state.anomalies.length ? 'No anomalies match the filters.' : 'No anomalies recorded yet.';
+  document.querySelectorAll('#anoms th[data-k]').forEach(th =>
+    th.setAttribute('aria-sort', th.dataset.k === k ? (dir > 0 ? 'ascending' : 'descending') : 'none'));
 }
+document.querySelectorAll('#anoms th[data-k]').forEach(th => th.querySelector('button').onclick = () => {
+  const k = th.dataset.k;
+  state.sort = { k, dir: state.sort.k === k ? -state.sort.dir : (k === 'symbol' || k === 'type' ? 1 : -1) };
+  renderAnomalies();
+});
+$('f-sym').onchange = $('f-sev').onchange = renderAnomalies;
 
-function renderFeed() {
-  const feed = document.getElementById('feed');
-  feed.innerHTML = '';
-  if (!state.anomalies.length) { feed.innerHTML = '<div class="empty">Waiting for the first anomaly…</div>'; }
-  state.anomalies.slice().reverse().slice(0, 100).forEach(a => feed.appendChild(feedItem(a)));
-  document.getElementById('feed-count').textContent = state.anomalies.length;
-}
-
+// ---- stats / status ---------------------------------------------------------------------------
 async function loadStats() {
   try {
     const s = await (await fetch('/api/stats')).json();
-    document.getElementById('k-windows').textContent = s.windows_scored.toLocaleString();
-    document.getElementById('k-anoms').textContent = s.anomalies.toLocaleString();
-    document.getElementById('k-rate').textContent = s.windows_scored
-      ? `${(100 * s.anomalies / s.windows_scored).toFixed(2)}% of windows` : ' ';
-    document.getElementById('k-lat').textContent = s.latency_p50_s == null ? '–'
-      : `${s.latency_p50_s.toFixed(1)}s / ${s.latency_p95_s.toFixed(1)}s`;
+    state.stats = s;
+    $('k-windows').textContent = s.windows_scored.toLocaleString();
+    $('k-anoms').textContent = s.anomalies.toLocaleString();
+    $('k-rate').textContent = s.windows_scored ? `${(100 * s.anomalies / s.windows_scored).toFixed(2)}% of windows` : ' ';
+    $('k-lat').textContent = s.latency_p50_s == null ? '–' : `${s.latency_p50_s.toFixed(1)} / ${s.latency_p95_s.toFixed(1)} s`;
     if (s.ground_truth) {
       const g = s.ground_truth, pct = v => v == null ? '–' : `${Math.round(v * 100)}%`;
-      document.getElementById('k-pr').textContent = `${pct(g.precision)} / ${pct(g.recall)}`;
-      document.getElementById('k-pr-sub').textContent = `${g.tp} hits, ${g.fp} false alarms, ${g.fn} missed`;
+      $('k-pr').textContent = `${pct(g.precision)} / ${pct(g.recall)}`;
+      $('k-pr-sub').textContent = `${g.tp} hit, ${g.fp} false alarm, ${g.fn} missed`;
     }
     if (s.model && s.model.mode) {
-      document.getElementById('k-model').textContent = s.model.version ? `v${s.model.version}` : 'baseline';
-      document.getElementById('k-model-sub').textContent = `${s.model.mode} detector`;
+      $('model').textContent = `${s.model.mode}, ${s.model.version ? 'model v' + s.model.version : 'no model (baseline only)'}`;
     }
-  } catch (e) { /* API restarting */ }
+  } catch (e) { /* API restarting; status line shows staleness */ }
 }
 
+function renderStatus() {
+  const c = $('conn');
+  c.textContent = state.ws;
+  c.className = state.ws === 'live' ? 'state-ok' : state.ws === 'connecting' ? 'state-warn' : 'state-bad';
+  const age = state.lastMsgAt == null ? null : (Date.now() - state.lastMsgAt) / 1000;
+  $('age').textContent = age == null ? 'none yet' : `${fmtAge(age)} ago`;
+  const b = $('banner');
+  if (state.ws !== 'live' && state.ws !== 'connecting') {
+    b.className = 'bad'; b.textContent = 'WebSocket disconnected. Charts and tables are frozen at the last update; retrying every 2 s.';
+  } else if (age != null && age > WARN_STALE_S) {
+    b.className = 'warn'; b.textContent = `No new scores for ${fmtAge(age)}. The connection is up, so check producer, Spark and detector.`;
+  } else if (age == null && state.ws === 'live') {
+    b.className = 'warn'; b.textContent = 'Connected, but no scores received yet. Windows close every 10 s once the pipeline is running.';
+  } else { b.className = ''; b.textContent = ''; }
+  if (document.querySelector('#syms tbody tr')) renderSymbols();
+}
+
+// ---- data plumbing ----------------------------------------------------------------------------
 async function bootstrap() {
   const symbols = await (await fetch('/api/symbols')).json();
   for (const s of symbols) state.windows[s] = await (await fetch(`/api/windows?symbol=${s}&limit=${MAX}`)).json();
   state.anomalies = await (await fetch('/api/anomalies?limit=200')).json();
-  state.anomalies.forEach(a => state.seen.add(key(a)));
+  state.anomalies.forEach(a => { state.seen.add(key(a)); state.counts[a.symbol] = (state.counts[a.symbol] || 0) + 1; });
   state.symbol = state.symbol || symbols[0] || null;
-  renderTabs(); render(); renderFeed(); loadStats();
+  renderSymbols(); render(); renderAnomalies(); loadStats();
 }
 
 function connect() {
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/live`);
-  ws.onopen = () => { document.getElementById('dot').classList.add('live'); document.getElementById('conn').textContent = 'live'; };
-  ws.onclose = () => {
-    document.getElementById('dot').classList.remove('live');
-    document.getElementById('conn').textContent = 'reconnecting';
-    setTimeout(connect, 2000);
-  };
+  ws.onopen = () => { state.ws = 'live'; renderStatus(); };
+  ws.onclose = () => { state.ws = 'disconnected'; renderStatus(); setTimeout(connect, 2000); };
   ws.onmessage = ev => {
     const msg = JSON.parse(ev.data);
     if (msg.type !== 'score') return;
+    state.lastMsgAt = Date.now();
     const s = msg.data, isNew = !state.windows[s.symbol];
     const rows = (state.windows[s.symbol] = state.windows[s.symbol] || []);
     // The WebSocket may replay windows the initial REST load already returned.
     if (rows.length && rows[rows.length - 1].window_start >= s.window_start) return;
     rows.push(s);
-    if (state.windows[s.symbol].length > 360) state.windows[s.symbol].shift();
+    if (rows.length > 360) rows.shift();
     if (!state.symbol) state.symbol = s.symbol;
-    if (isNew) renderTabs();
     if (s.symbol === state.symbol) render();
-    if (s.is_anomaly && !state.seen.has(key(s))) { state.seen.add(key(s)); state.anomalies.push(s); renderFeed(); }
+    if (s.is_anomaly && !state.seen.has(key(s))) {
+      state.seen.add(key(s)); state.anomalies.push(s);
+      state.counts[s.symbol] = (state.counts[s.symbol] || 0) + 1;
+      renderAnomalies();
+    }
+    renderSymbols(); renderStatus();
   };
 }
 
+if (window.Chart) buildCharts();
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (!window.Chart) return;
+  applyChartTheme();
+  for (const c of [priceChart, sevChart, volumeChart]) c.update();
+  render();
+});
 bootstrap().catch(console.error);
 connect();
+renderStatus();
 setInterval(loadStats, 3000);
+setInterval(renderStatus, 1000);
 </script>
 </body>
 </html>
