@@ -35,6 +35,14 @@ _TYPE_BY_FEATURE = {
 
 Z_CLIP = 1_000.0
 
+# Smallest scale (in feature units) a z-score may be divided by. Price-derived features are
+# quantised by the exchange tick: SOLUSDT moves in 0.01 steps, about 1 bp of its price, so a
+# baseline built from windows that all span exactly one tick has a MAD and std of almost zero.
+# Without a floor, a window spanning zero or four ticks then scores hundreds of sigmas. One
+# basis point is the coarsest tick among the traded symbols; the other features stay unfloored.
+MIN_SCALE_BY_FEATURE = {"log_return": 1e-4, "range_pct": 1e-4}
+_MIN_SCALE = np.array([MIN_SCALE_BY_FEATURE.get(f, 0.0) for f in MODEL_FEATURES])
+
 
 class RollingBaseline:
     """Per-symbol rolling median/MAD baseline over the last ``history`` windows."""
@@ -61,6 +69,7 @@ class RollingBaseline:
         # A feature that was constant so far (MAD = 0) falls back to std, then to a tiny floor.
         fallback = hist.std(axis=0)
         scale = np.where(scale > 1e-12, scale, np.where(fallback > 1e-12, fallback, 1e-6))
+        scale = np.maximum(scale, _MIN_SCALE)
         return np.clip((x - median) / scale, -Z_CLIP, Z_CLIP)
 
     def update(self, symbol: str, x: np.ndarray) -> None:

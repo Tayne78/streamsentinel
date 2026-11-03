@@ -56,6 +56,24 @@ def test_baseline_is_robust_and_per_symbol():
     assert np.all(np.abs(z_b) < 1.5)
 
 
+def test_tick_quantised_history_does_not_saturate_the_zscore():
+    # SOLUSDT-like: price moves in ~1 bp ticks, so almost every window spans exactly one tick.
+    ri = MODEL_FEATURES.index("range_pct")
+    tick = 1.08e-4
+    baseline = RollingBaseline(history=60, min_history=30)
+    for i in range(40):
+        x = np.zeros(len(MODEL_FEATURES))
+        x[ri] = tick * (2 if i == 7 else 1)
+        baseline.update("SOL", x)
+    for ticks in (0, 4):
+        x = np.zeros(len(MODEL_FEATURES))
+        x[ri] = tick * ticks
+        assert abs(baseline.zscores("SOL", x)[ri]) < 6
+    burst = np.zeros(len(MODEL_FEATURES))
+    burst[ri] = 0.01  # 100 bp: a real volatility burst must still stand out
+    assert baseline.zscores("SOL", burst)[ri] > 6
+
+
 def test_warmup_windows_are_never_flagged():
     detector = StreamingDetector(DetectorConfig(min_history=30))
     score = detector.process(normal_window("BTCUSDT", 0, volume=1e9))
