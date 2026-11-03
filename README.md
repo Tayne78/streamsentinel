@@ -148,7 +148,6 @@ src/streamsentinel/
 tests/             unit, Spark parity, end-to-end pipeline, API, training/registry
 docker/            Dockerfiles for the app and Spark images
 docs/              dashboard screenshots
-.claude/agents/    Claude Code review agent for UI and architecture (development aid)
 ```
 
 ## Development
